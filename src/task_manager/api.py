@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
 from task_manager.database import engine, Base, get_session
-from task_manager.models import TaskModel, User
-from task_manager.repositories import TaskRepository
+from task_manager.services import TaskService
 from task_manager.schemas import (
     TaskCreate,
     TaskUpdate,
@@ -21,83 +20,85 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     yield
 
-app = FastAPI(title="Task Management System API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="Task Management System API",
+    version="1.0.0",
+    description="REST API для системи керування завданнями (Лабораторна №8, Варіант 14)",
+    lifespan=lifespan,
+)
+
+def get_service(session: Session = Depends(get_session)) -> TaskService:
+    return TaskService(session)
 
 
-@app.get("/tasks", response_model=list[TaskResponse])
+@app.get("/tasks", response_model=list[TaskResponse], tags=["Tasks"])
 async def get_tasks(
-    status: str | None = Query(None, description="todo, in_progress, done"),
-    priority: str | None = Query(None, description="low, medium, high"),
-    user_id: int | None = Query(None),
-    session: Session = Depends(get_session),
+    status: str | None = Query(None, description="Фільтрація за статусом"),
+    priority: str | None = Query(None, description="Фільтрація за пріоритетом"),
+    user_id: int | None = Query(None, description="Фільтрація за користувачем"),
+    service: TaskService = Depends(get_service),
 ):
-    repo = TaskRepository(session)
-    return repo.get_all(status=status, priority=priority, user_id=user_id)
+    return service.list_tasks(status=status, priority=priority, user_id=user_id)
 
 
-@app.get("/tasks/overdue", response_model=list[TaskResponse])
-async def get_overdue_tasks(session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    return repo.get_overdue()
+@app.get("/tasks/overdue", response_model=list[TaskResponse], tags=["Tasks"])
+async def get_overdue_tasks(service: TaskService = Depends(get_service)):
+    return service.get_overdue_tasks()
 
 
-@app.get("/tasks/statistics", response_model=TaskStatistics)
-async def get_tasks_statistics(session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    return repo.get_statistics()
+@app.get("/tasks/statistics", response_model=TaskStatistics, tags=["Tasks"])
+async def get_tasks_statistics(service: TaskService = Depends(get_service)):
+    return service.get_statistics()
 
 
-@app.get("/tasks/{id}", response_model=TaskResponse)
-async def get_task_by_id(id: int, session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    task = repo.get_by_id(id)
+@app.get("/tasks/{id}", response_model=TaskResponse, tags=["Tasks"])
+async def get_task_by_id(id: int, service: TaskService = Depends(get_service)):
+    task = service.get_task(id)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
     return task
 
 
-@app.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-async def create_task(data: TaskCreate, session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    new_task = TaskModel(**data.model_dump())
-    return repo.create(new_task)
+@app.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED, tags=["Tasks"])
+async def create_task(data: TaskCreate, service: TaskService = Depends(get_service)):
+    return service.create_task(data)
 
 
-@app.patch("/tasks/{id}", response_model=TaskResponse)
-async def update_task(id: int, data: TaskUpdate, session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    task = repo.get_by_id(id)
+@app.patch("/tasks/{id}", response_model=TaskResponse, tags=["Tasks"])
+async def update_task(id: int, data: TaskUpdate, service: TaskService = Depends(get_service)):
+    task = service.update_task(id, data)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    updates = data.model_dump(exclude_unset=True)
-    return repo.update(task, updates)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+    return task
 
 
-@app.delete("/tasks/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(id: int, session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    task = repo.get_by_id(id)
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    repo.delete(task)
+@app.delete("/tasks/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Tasks"])
+async def delete_task(id: int, service: TaskService = Depends(get_service)):
+    deleted = service.delete_task(id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
 
 
-@app.get("/users/{id}/tasks", response_model=list[TaskResponse])
-async def get_user_tasks(id: int, session: Session = Depends(get_session)):
-    repo = TaskRepository(session)
-    return repo.get_by_user(id)
+@app.get("/users/{id}/tasks", response_model=list[TaskResponse], tags=["Users"])
+async def get_user_tasks(id: int, service: TaskService = Depends(get_service)):
+    return service.get_user_tasks(id)
 
 
-@app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(data: UserCreate, session: Session = Depends(get_session)):
-    user = User(name=data.name, email=data.email)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
+@app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["Users"])
+async def create_user(data: UserCreate, service: TaskService = Depends(get_service)):
+    return service.create_user(data)
 
 
-@app.post("/tasks/batch-users-summary")
+@app.post("/tasks/batch-users-summary", tags=["Async Aggregation"])
 async def batch_fetch_users_tasks(user_ids: list[int]):
     try:
         results = await asyncio.wait_for(
@@ -113,5 +114,5 @@ async def batch_fetch_users_tasks(user_ids: list[int]):
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Batch request processing timed out",
+            detail="Batch operation timed out",
         )

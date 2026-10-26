@@ -8,7 +8,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
+    email = Column(String(120), unique=True, nullable=False, index=True)
 
     tasks = relationship("TaskModel", back_populates="assignee", cascade="all, delete-orphan")
 
@@ -19,8 +19,8 @@ class TaskModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
-    status = Column(String(20), default="todo", nullable=False)       # todo, in_progress, done
-    priority = Column(String(20), default="medium", nullable=False)   # low, medium, high
+    status = Column(String(30), default="todo", nullable=False)       # todo, in_progress, done
+    priority = Column(String(30), default="medium", nullable=False)   # low, medium, high
     due_date = Column(DateTime, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 

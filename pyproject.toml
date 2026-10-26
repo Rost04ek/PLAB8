@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "task-manager"
 version = "0.8.0"
-description = "Task Management System REST API (Lab 8)"
+description = "Система керування завданнями - Лабораторна робота №8 (Варіант 14)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

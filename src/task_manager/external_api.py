@@ -9,7 +9,7 @@ async def fetch_user_tasks_with_retry(
     attempts: int = 3,
 ) -> list[dict]:
     url = f"{base_url}/users/{user_id}/tasks"
-    
+
     async with semaphore:
         for attempt in range(1, attempts + 1):
             try:
@@ -21,7 +21,7 @@ async def fetch_user_tasks_with_retry(
                     raise
                 await asyncio.sleep(0.5 * attempt)
 
-    raise RuntimeError("Unexpected retry state")
+    raise RuntimeError("Не вдалося отримати відповідь після повторних спроб")
 
 
 async def fetch_multiple_users_tasks(
@@ -31,14 +31,16 @@ async def fetch_multiple_users_tasks(
     timeout: float = 5.0,
 ) -> dict[int, list[dict]]:
     semaphore = asyncio.Semaphore(max_concurrency)
-    
+
     async with httpx.AsyncClient(timeout=timeout) as client:
-        tasks = [
+        # Використання asyncio.Task
+        tasks: list[asyncio.Task] = [
             asyncio.create_task(
                 fetch_user_tasks_with_retry(client, semaphore, base_url, uid)
             )
             for uid in user_ids
         ]
-        
+
+        # Паралельне очікування через asyncio.gather
         results = await asyncio.gather(*tasks, return_exceptions=False)
         return dict(zip(user_ids, results))

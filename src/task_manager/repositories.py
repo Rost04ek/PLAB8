@@ -72,3 +72,16 @@ class TaskRepository:
             "pending": total - completed,
             "overdue": overdue,
         }
+
+class UserRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_by_id(self, user_id: int) -> User | None:
+        return self.session.get(User, user_id)
+
+    def create(self, user: User) -> User:
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        return user

@@ -1,30 +1,12 @@
-# Лабораторна робота №8: Мережеве та асинхронне програмування. REST API
+# Лабораторна робота №8
+## Варіант 14: Система керування завданнями (Task Management System)
+Студент: Козачок Ростислав
 
-**Варіант 14:** Система керування завданнями (Task Management System)
+### Архітектура:
+HTTP Client -> FastAPI REST API -> Service Layer -> Repository Layer -> Database
 
-## Опис проєкту
-Проєкт реалізує REST API для керування завданнями та користувачами відповідно до вимог лабораторної роботи:
-- Використання FastAPI та Pydantic v2.
-- Повноцінний CRUD для завдань (GET, POST, PATCH, DELETE).
-- Додаткові endpoints: прострочені завдання (`/tasks/overdue`), статистика завдань (`/tasks/statistics`), завдання користувача (`/users/{id}/tasks`).
-- Query-фільтрація за статусом, пріоритетом та користувачем.
-- Асинхронний клієнт на основі `httpx.AsyncClient` з підтримкою `asyncio.Task`, `asyncio.gather`, `asyncio.Semaphore` (обмеження паралелізму), тайм-аутів та механізму повторних спроб (retry з backoff).
-- Автоматизовані асинхронні тести з використанням `pytest` та `pytest-asyncio`.
-
-## Запуск проєкту
-
-### 1. Встановлення залежностей
+### Запуск:
 ```bash
 pip install -e ".[test]"
-```
-
-### 2. Запуск REST API сервера
-```bash
 uvicorn task_manager.api:app --reload
-```
-Документація Swagger UI буде доступна за адресою: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-
-### 3. Запуск тестів
-```bash
-pytest -v
 ```

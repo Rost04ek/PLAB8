@@ -29,7 +29,7 @@ async def test_update_and_delete_task():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         task_payload = {
-            "title": "Documentation",
+            "title": "Write documentation",
             "status": "todo",
             "priority": "low",
             "due_date": "2026-12-01T10:00:00",
@@ -62,20 +62,20 @@ async def test_pydantic_validation_error():
 
 
 @pytest.mark.asyncio
-async def test_statistics_endpoint():
+async def test_statistics_and_overdue_endpoints():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post("/tasks", json={
-            "title": "Task 1",
+            "title": "Completed Task",
             "status": "done",
             "priority": "low",
             "due_date": "2026-12-01T10:00:00",
         })
         await ac.post("/tasks", json={
-            "title": "Task 2",
+            "title": "Overdue Task",
             "status": "todo",
             "priority": "high",
-            "due_date": "2020-01-01T10:00:00",  # Overdue
+            "due_date": "2020-01-01T10:00:00",
         })
 
         stat_res = await ac.get("/tasks/statistics")
@@ -85,3 +85,9 @@ async def test_statistics_endpoint():
         assert stats["completed"] == 1
         assert stats["pending"] == 1
         assert stats["overdue"] == 1
+
+        overdue_res = await ac.get("/tasks/overdue")
+        assert overdue_res.status_code == 200
+        overdue_list = overdue_res.json()
+        assert len(overdue_list) == 1
+        assert overdue_list[0]["title"] == "Overdue Task"
